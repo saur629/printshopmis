@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  password  String
+  role      String   @default("USER")
+  mobile    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobCards   JobCard[]
+  attendance Attendance[]
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  contact     String
+  email       String?
+  address     String?
+  city        String?
+  gstNo       String?
+  creditLimit Float    @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  jobCards   JobCard[]
+  quotations Quotation[]
+  invoices   Invoice[]
+  payments   Payment[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  contact   String
+  email     String?
+  address   String?
+  gstNo     String?
+  items     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  purchases Purchase[]
+}
+
+model JobType {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  name     String
+  baseRate Float
+  gstPct   Float   @default(18)
+  tatDays  Int     @default(3)
+  active   Boolean @default(true)
+
+  jobCards JobCard[]
+}
+
+model Item {
+  id       String  @id @default(cuid())
+  hsnCode  String
+  name     String
+  unit     String
+  gstPct   Float   @default(18)
+  saleRate Float
+  stock    Float   @default(0)
+  minStock Float   @default(10)
+  active   Boolean @default(true)
+
+  purchaseItems PurchaseItem[]
+}
+
+model JobCard {
+  id           String    @id @default(cuid())
+  jobNo        String    @unique
+  date         DateTime  @default(now())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id])
+  jobTypeId    String
+  jobType      JobType   @relation(fields: [jobTypeId], references: [id])
+  description  String
+  qty          Int
+  size         String?
+  colors       String?
+  paper        String?
+  instructions String?
+  operatorId   String?
+  operator     User?     @relation(fields: [operatorId], references: [id])
+  status       String    @default("RECEIVED")
+  dueDate      DateTime?
+  rate         Float     @default(0)
+  amount       Float     @default(0)
+  gstPct       Float     @default(18)
+  gstAmount    Float     @default(0)
+  totalAmount  Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  invoiceItems InvoiceItem[]
+  smsLogs      SmsLog[]
+}
+
+model Quotation {
+  id          String   @id @default(cuid())
+  qtNo        String   @unique
+  date        DateTime @default(now())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  description String
+  qty         Int
+  rate        Float
+  amount      Float
+  gstPct      Float    @default(18)
+  gstAmount   Float
+  totalAmount Float
+  validTill   DateTime
+  notes       String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  invNo       String   @unique
+  date        DateTime @default(now())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  dueDate     DateTime
+  subTotal    Float
+  gstAmount   Float
+  totalAmount Float
+  paidAmount  Float    @default(0)
+  status      String   @default("UNPAID")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items    InvoiceItem[]
+  payments Payment[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  jobCardId   String?
+  jobCard     JobCard? @relation(fields: [jobCardId], references: [id])
+  description String
+  qty         Int
+  rate        Float
+  amount      Float
+  gstPct      Float    @default(18)
+  gstAmount   Float
+  totalAmount Float
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  receiptNo String   @unique
+  date      DateTime @default(now())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  amount    Float
+  mode      String
+  reference String?
+  notes     String?
+  status    String   @default("SETTLED")
+  createdAt DateTime @default(now())
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  poNo        String   @unique
+  date        DateTime @default(now())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  totalAmount Float
+  status      String   @default("ORDERED")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items PurchaseItem[]
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id])
+  qty        Float
+  rate       Float
+  amount     Float
+}
+
+model Attendance {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  date     DateTime
+  checkIn  String?
+  checkOut String?
+  status   String   @default("PRESENT")
+  notes    String?
+
+  @@unique([userId, date])
+}
+
+model SmsLog {
+  id        String   @id @default(cuid())
+  clientId  String?
+  jobCardId String?
+  jobCard   JobCard? @relation(fields: [jobCardId], references: [id])
+  mobile    String
+  message   String
+  template  String?
+  status    String   @default("SENT")
+  sentAt    DateTime @default(now())
+}
+
+model SmsTemplate {
+  id      String  @id @default(cuid())
+  name    String
+  content String
+  isAuto  Boolean @default(false)
+  trigger String?
+  active  Boolean @default(true)
+}
